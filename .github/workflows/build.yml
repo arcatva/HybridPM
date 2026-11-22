@@ -1,0 +1,42 @@
+name: build
+
+# Builds HybridPM.kext from this branch with the repository's own build.sh and keeps it as a run artifact.
+# The sources are those of upstream main at 2c0b2aca; this workflow file is the only addition.
+
+on:
+  push:
+    branches: [acer-build]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build HybridPM.kext
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build
+        shell: bash
+        run: bash build.sh
+      - name: Describe the result
+        shell: bash
+        run: |
+          file build/out/HybridPM.kext/Contents/MacOS/HybridPM
+          shasum -a 256 build/out/HybridPM.kext/Contents/MacOS/HybridPM build/out/HybridPM.kext/Contents/Info.plist
+          cat build/obj/compile.log || true
+      - name: Package
+        shell: bash
+        run: |
+          cd build/out
+          zip -qry HybridPM.zip HybridPM.kext
+          shasum -a 256 HybridPM.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HybridPM-${{ github.sha }}
+          path: build/out/HybridPM.zip
+          if-no-files-found: error
